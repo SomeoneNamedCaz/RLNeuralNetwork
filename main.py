@@ -1,5 +1,7 @@
 from NeuralNetwork import NeuralNetwork
 import numpy as np
+import sklearn.datasets as datasets
+# import matplotlib.pyplot as plt
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 
@@ -18,5 +20,7 @@ if __name__ == '__main__':
         assert nn.weights[i].shape[0] == layerSizes[i] ## is input size right
         assert nn.weights[i].shape[1] == layerSizes[i+1] ## is output size right
 
-    data = np.random.uniform(size=[1,10])
-    nn.forwardPass(data)
+    digits = datasets.load_digits()
+    # data = np.random.uniform(size=[1,10])
+    # nn.forwardPass(digits[0])
+    nn.train(digits.images, digits[1])

@@ -53,18 +53,21 @@ class NeuralNetwork():
             # calculate deltas (so we can train)
             # calculate deltas for weights more than 1 layer back
             for deltaLayer in deltas: ## update earlier layers
-                for oldWeightLayer in self.weights[:i]:
-                    for a in range(oldWeightLayer.shape[0]):
-                        for b in range(oldWeightLayer.shape[1]):
-                            for k in range(deltaLayer.shape[-1]):
+                for a in range(weightLayer.shape[0]):
+                    for b in range(weightLayer.shape[1]):
+                        for k in range(deltaLayer.shape[-1]):
+                            try:
                                 print("start")
                                 derivative = self.derivativeOfActivation(outputBeforeActivation)[:,k]
-                                Wcol = oldWeightLayer[:, k]
-                                deltCol = deltaLayer[a,:,b]
+                                Wcol = weightLayer[:, k]
+                                deltCol = deltaLayer[a,b, :Wcol.shape[0]]
                                 print("self.derivativeOfActivation(outputBeforeActivation)[:,k]",derivative)
-                                print("weightLayer[:,k]", oldWeightLayer.shape, Wcol.shape)
+                                print("weightLayer[:,k]", weightLayer.shape, Wcol.shape)
                                 print("deltaLayer[a][b]", deltaLayer.shape, deltCol.shape)
+
                                 deltaLayer[a][b][k] = derivative * np.dot(Wcol, deltCol)
+                            except IndexError:
+                                pass
             # calculate deltas for latest weights
             deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),))) ## init deltas with respect to first layer weights
 
@@ -77,3 +80,11 @@ class NeuralNetwork():
         print(output)
         print(deltas)
         return output, deltas
+    def train(self, x, y, numIter=100):
+
+        for i in range(numIter):
+            yhat, deltas = self.forwardPass(x)
+            print("error", np.sum((yhat - y) ** 2))
+            ## update
+            for weightLayer in self.weights:
+                weightLayer -= deltas * self.learningRate
