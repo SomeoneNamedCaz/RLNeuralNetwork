@@ -35,6 +35,7 @@ class NeuralNetwork():
         self.penaltyForNotLearning = penaltyForNotLearning
         self.activaction = activaction
         self.derivativeOfActivation = derivativeOfActivation
+        self.layerSizes = layerSizes
     def forwardPass(self, x):
         """ x : is input, has shape of
             :returns: output of NeuralNetwork and deltas ="""
@@ -50,27 +51,27 @@ class NeuralNetwork():
 
 
             # calculate deltas (so we can train)
-            deltas.append(np.zeros(shape=weightLayer.shape + (self.weights[-1].shape[1],))) ## init deltas with respect to first layer weights
+            # calculate deltas for weights more than 1 layer back
+            for deltaLayer in deltas: ## update earlier layers
+                for oldWeightLayer in self.weights[:i]:
+                    for a in range(oldWeightLayer.shape[0]):
+                        for b in range(oldWeightLayer.shape[1]):
+                            for k in range(deltaLayer.shape[-1]):
+                                print("start")
+                                derivative = self.derivativeOfActivation(outputBeforeActivation)[:,k]
+                                Wcol = oldWeightLayer[:, k]
+                                deltCol = deltaLayer[a,:,b]
+                                print("self.derivativeOfActivation(outputBeforeActivation)[:,k]",derivative)
+                                print("weightLayer[:,k]", oldWeightLayer.shape, Wcol.shape)
+                                print("deltaLayer[a][b]", deltaLayer.shape, deltCol.shape)
+                                deltaLayer[a][b][k] = derivative * np.dot(Wcol, deltCol)
+            # calculate deltas for latest weights
+            deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),))) ## init deltas with respect to first layer weights
 
-            for a in range(weightLayer.shape[0]):
-                for b in range(weightLayer.shape[1]):
-                    for k in range(weightLayer.shape[1]): # FIX: k needs to have different max values depending on layer
-                        if b == k:
-                            print("self.derivativeOfActivation(outputBeforeActivation)",self.derivativeOfActivation(outputBeforeActivation))
-                            print(output[:,a])
-                            deltas[-1][a][b][k] = self.derivativeOfActivation(outputBeforeActivation)[:,k] * output[:,a]
-            for deltaLayer in deltas[:-1]: ## update earlier layers
-                for a in range(weightLayer.shape[0]):
-                    for b in range(weightLayer.shape[1]):
-                        for k in range(weightLayer.shape[1]):
-                            print("start")
-                            print("self.derivativeOfActivation(outputBeforeActivation)[:,k]",self.derivativeOfActivation(outputBeforeActivation)[:,
-                                                      k])
-                            print("weightLayer[:,k]",weightLayer.shape,weightLayer[:,k].shape)
-                            print("deltaLayer[a][b]",deltaLayer.shape,deltaLayer[a,b].shape)
-                            print("np.dot(weightLayer[:,k], deltaLayer[a][b])",np.dot(weightLayer[:,k], deltaLayer[a,b]))
-                            deltaLayer[a][b][k] = self.derivativeOfActivation(outputBeforeActivation)[:,
-                                                      k] * np.dot(weightLayer[:,k], deltaLayer[a,b])
+            for a in range(deltas[-1].shape[0]):
+                for b in range(deltas[-1].shape[1]):
+                    deltas[-1][a][b][b] = self.derivativeOfActivation(outputBeforeActivation)[:,b] * output[:,a]
+
 
             output = self.activaction(outputBeforeActivation)  # pass through the layer
         print(output)
