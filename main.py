@@ -9,7 +9,7 @@ import sklearn.datasets as datasets
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     ## test neural network
-    layerSizes = [10,20,50,10]
+    layerSizes = [64,20,50,10]
     nn = NeuralNetwork(layerSizes)
     ## test weight sizes
     print("size", len(nn.weights))
@@ -21,6 +21,7 @@ if __name__ == '__main__':
         assert nn.weights[i].shape[1] == layerSizes[i+1] ## is output size right
 
     digits = datasets.load_digits()
+    digits.keys()
     # data = np.random.uniform(size=[1,10])
     # nn.forwardPass(digits[0])
-    nn.train(digits.images, digits[1])
+    nn.train(digits["data"], digits["target"])

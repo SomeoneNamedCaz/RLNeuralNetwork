@@ -7,7 +7,7 @@ def sigmoid(x):
 
 def sigmoidPrime(x):
     exped = np.exp(-x)
-    return ((1+exped)**2)*exped
+    return ((1+exped)**(-2))*exped
 
 def relu(x):
     return np.max(0, x)
@@ -57,15 +57,15 @@ class NeuralNetwork():
                     for b in range(weightLayer.shape[1]):
                         for k in range(deltaLayer.shape[-1]):
                             try:
-                                print("start")
+                                # print("start")
                                 derivative = self.derivativeOfActivation(outputBeforeActivation)[:,k]
                                 Wcol = weightLayer[:, k]
                                 deltCol = deltaLayer[a,b, :Wcol.shape[0]]
-                                print("self.derivativeOfActivation(outputBeforeActivation)[:,k]",derivative)
-                                print("weightLayer[:,k]", weightLayer.shape, Wcol.shape)
-                                print("deltaLayer[a][b]", deltaLayer.shape, deltCol.shape)
+                                # print("self.derivativeOfActivation(outputBeforeActivation)[:,k]",derivative)
+                                # print("weightLayer[:,k]", weightLayer.shape, Wcol.shape)
+                                # print("deltaLayer[a][b]", deltaLayer.shape, deltCol.shape)
 
-                                deltaLayer[a][b][k] = derivative * np.dot(Wcol, deltCol)
+                                deltaLayer[a][b][k] = np.sum(derivative * np.dot(Wcol, deltCol))
                             except IndexError:
                                 pass
             # calculate deltas for latest weights
@@ -73,12 +73,12 @@ class NeuralNetwork():
 
             for a in range(deltas[-1].shape[0]):
                 for b in range(deltas[-1].shape[1]):
-                    deltas[-1][a][b][b] = self.derivativeOfActivation(outputBeforeActivation)[:,b] * output[:,a]
+                    deltas[-1][a][b][b] = np.dot(self.derivativeOfActivation(outputBeforeActivation)[:,b],output[:,a])
 
 
             output = self.activaction(outputBeforeActivation)  # pass through the layer
-        print(output)
-        print(deltas)
+        # print(output)
+        # print(deltas)
         return output, deltas
     def train(self, x, y, numIter=100):
 
