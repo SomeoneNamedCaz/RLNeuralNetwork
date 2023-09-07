@@ -6,7 +6,10 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 def sigmoidPrime(x):
-    exped = np.exp(-x)
+    try:
+        exped = np.exp(-x)
+    except OverflowError:
+        return 0.0
     return ((1+exped)**(-2))*exped
 
 def relu(x):
@@ -45,7 +48,6 @@ class NeuralNetwork():
             sys.exit(1)
         output = x
         for i in range(len(self.weights)): ## for each layer of neural network
-            print(i)
             weightLayer = self.weights[i]
             outputBeforeActivation = np.dot(output,weightLayer)
 
@@ -61,15 +63,12 @@ class NeuralNetwork():
                                 derivative = self.derivativeOfActivation(outputBeforeActivation)[:,k]
                                 Wcol = weightLayer[:, k]
                                 deltCol = deltaLayer[a,b, :Wcol.shape[0]]
-                                # print("self.derivativeOfActivation(outputBeforeActivation)[:,k]",derivative)
-                                # print("weightLayer[:,k]", weightLayer.shape, Wcol.shape)
-                                # print("deltaLayer[a][b]", deltaLayer.shape, deltCol.shape)
 
-                                deltaLayer[a][b][k] = np.sum(derivative * np.dot(Wcol, deltCol))
+                                deltaLayer[a][b][k] = derivative * np.dot(Wcol, deltCol)
                             except IndexError:
                                 pass
             # calculate deltas for latest weights
-            deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),))) ## init deltas with respect to first layer weights
+            deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),x.shape[0]))) ## init deltas with respect to first layer weights
 
             for a in range(deltas[-1].shape[0]):
                 for b in range(deltas[-1].shape[1]):
@@ -84,7 +83,30 @@ class NeuralNetwork():
 
         for i in range(numIter):
             yhat, deltas = self.forwardPass(x)
-            print("error", np.sum((yhat - y) ** 2))
+            error = np.sum((yhat - y) ** 2)
+            print("error", error)
+            if np.isnan(error):
+                print("error is nan, stopping")
+                break
             ## update
+
+
+            weightLayerIndex = -1
             for weightLayer in self.weights:
-                weightLayer -= deltas * self.learningRate
+                weightLayerIndex += 1
+                # for deltaLayer in deltas:  ## update earlier layers
+                weightChangesWanted = np.zeros_like(weightLayer)
+                for a in range(weightLayer.shape[0]):
+                    for b in range(weightLayer.shape[1]):
+                        for k in range(weightLayer.shape[-1]):
+                            # print(deltas[weightLayerIndex][a][b,:yhat.shape[1]].shape)
+
+                            weightChangesWanted[a,b] = np.mean(np.dot(yhat - y, deltas[weightLayerIndex][a][b][:yhat.shape[1]]))
+                weightLayer -=  weightChangesWanted * self.learningRate
+                # need to condense deltas into self.weights-like array buy dot product with yhat - y
+
+            for j in range(1):
+                print(yhat[j])
+                print("vs")
+                print(y[j])
+                print("__________")
