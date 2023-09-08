@@ -1,6 +1,7 @@
 import numpy as np
 import sys
-
+import random
+import tensorflow
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -39,6 +40,7 @@ class NeuralNetwork():
         self.activaction = activaction
         self.derivativeOfActivation = derivativeOfActivation
         self.layerSizes = layerSizes
+        self.avgPastWeights = [] # rolling avg of past weights (give slight gradient away from their)
     def forwardPass(self, x):
         """ x : is input, has shape of
             :returns: output of NeuralNetwork and deltas ="""
@@ -51,7 +53,6 @@ class NeuralNetwork():
             weightLayer = self.weights[i]
             outputBeforeActivation = np.dot(output,weightLayer)
 
-
             # calculate deltas (so we can train)
             # calculate deltas for weights more than 1 layer back
             for deltaLayer in deltas: ## update earlier layers
@@ -60,7 +61,7 @@ class NeuralNetwork():
                         for k in range(deltaLayer.shape[-1]):
                             try:
                                 # print("start")
-                                derivative = self.derivativeOfActivation(outputBeforeActivation)[:,k]
+                                derivative = self.derivativeOfActivation(outputBeforeActivation[:,k])
                                 Wcol = weightLayer[:, k]
                                 deltCol = deltaLayer[a,b, :Wcol.shape[0]]
 
@@ -68,18 +69,36 @@ class NeuralNetwork():
                             except IndexError:
                                 pass
             # calculate deltas for latest weights
+            #           i/x               a   b           k (only going to use part)     num samples
             deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),x.shape[0]))) ## init deltas with respect to first layer weights
 
+            # has shape of weightLayer
+            deltasOfSameLayer = np.matmul(self.derivativeOfActivation(outputBeforeActivation), np.transpose(output))
+            print("doudwx shape", deltasOfSameLayer.shape)
+            print("delts", deltas[-1].shape)
+            # deltas = np.transpose(deltas,axes=(3,2,0,1))
+            print("delts", deltas[-1].shape)
+            # for sampleNum in deltas[-1].shape[0]:
+
+
+            # for _ in range(deltas[-1].shape[0]):
+
+            # for a in range(deltas[-1].shape[0]):
+            #     for b in range(deltas[-1].shape[1]):
+            #         deltasOfSameLayer[a,b]
             for a in range(deltas[-1].shape[0]):
                 for b in range(deltas[-1].shape[1]):
-                    deltas[-1][a][b][b] = np.dot(self.derivativeOfActivation(outputBeforeActivation)[:,b],output[:,a])
+                    assert np.dot(self.derivativeOfActivation(outputBeforeActivation)[:, b],output[:, a]) == deltasOfSameLayer[a,b]
+
+                    # deltas[-1][a][b][b] = np.dot(self.derivativeOfActivation(outputBeforeActivation)[:, b],
+                    #                              output[:, a])
 
 
             output = self.activaction(outputBeforeActivation)  # pass through the layer
         # print(output)
         # print(deltas)
         return output, deltas
-    def train(self, x, y, numIter=100):
+    def train(self, x, y, numIter=2):
 
         for i in range(numIter):
             yhat, deltas = self.forwardPass(x)
@@ -105,8 +124,11 @@ class NeuralNetwork():
                 weightLayer -=  weightChangesWanted * self.learningRate
                 # need to condense deltas into self.weights-like array buy dot product with yhat - y
 
-            for j in range(1):
-                print(yhat[j])
-                print("vs")
-                print(y[j])
-                print("__________")
+
+            ranNum = random.randint(0,yhat.shape[1]-1)
+
+            print(tensorflow.nn.softmax(yhat[ranNum]))
+            print("vs")
+            print(y[ranNum])
+            print(np.argmax(yhat[ranNum]), np.argmax(y[ranNum]))
+            print("__________")
