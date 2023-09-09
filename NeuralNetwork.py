@@ -1,10 +1,10 @@
 import numpy as np
 import sys
 import random
-import tensorflow
+# import tensorflow
 
 def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+    return (1 / (1 + np.exp(-x)))
 
 def sigmoidPrime(x):
     try:
@@ -21,7 +21,7 @@ def relu(x):
 
 
 class NeuralNetwork():
-    def __init__(self, layerSizes, learningRate=0.01, penaltyForNotLearning=1, activaction=sigmoid, derivativeOfActivation=sigmoidPrime):
+    def __init__(self, layerSizes, learningRate=0.5, penaltyForNotLearning=1, activaction=sigmoid, derivativeOfActivation=sigmoidPrime):
         """ layerSizes :list of ints, the values are the number of nodes
                         in the layer. Includes the input and output layer
         """
@@ -41,43 +41,49 @@ class NeuralNetwork():
         self.derivativeOfActivation = derivativeOfActivation
         self.layerSizes = layerSizes
         self.avgPastWeights = [] # rolling avg of past weights (give slight gradient away from their)
+        self.debugMode = False
     def forwardPass(self, x):
         """ x : is input, has shape of
             :returns: output of NeuralNetwork and deltas ="""
         deltas = []
         if x.shape[1] != self.weights[0].shape[0]:
-            print("ERROR: input is wrong size")
+            #print("ERROR: input is wrong size")
             sys.exit(1)
         output = x
         for i in range(len(self.weights)): ## for each layer of neural network
             weightLayer = self.weights[i]
-            outputBeforeActivation = np.dot(output,weightLayer)
+            outputBeforeActivation = np.matmul(output,weightLayer)
 
             # calculate deltas (so we can train)
             # calculate deltas for weights more than 1 layer back
-            for deltaLayer in deltas: ## update earlier layers
-                for a in range(weightLayer.shape[0]):
-                    for b in range(weightLayer.shape[1]):
-                        for k in range(deltaLayer.shape[-1]):
-                            try:
-                                # print("start")
-                                derivative = self.derivativeOfActivation(outputBeforeActivation[:,k])
-                                Wcol = weightLayer[:, k]
-                                deltCol = deltaLayer[a,b, :Wcol.shape[0]]
 
-                                deltaLayer[a][b][k] = derivative * np.dot(Wcol, deltCol)
-                            except IndexError:
-                                pass
+            for deltaLayer in deltas: ## for delta corresponding to first layer
+                for a in range(deltaLayer.shape[0]):
+                    for b in range(deltaLayer.shape[1]):
+                                # #print("start")
+                                # derivative = self.derivativeOfActivation(outputBeforeActivation[:,k])
+                                # Wcol = weightLayer[:, k]
+                                # deltCol = deltaLayer[a,b, :Wcol.shape[0]]
+                                # print(self.derivativeOfActivation(outputBeforeActivation).shape) # (numSamples, next layer size)
+                                # print(weightLayer.shape) # (previous layer size, next layer size
+                                # print(deltaLayer.shape) # (size of inputs of weights, size of outputs of weights
+                                    # (self.weights[delts.indexof[deltlayer], layer after that size, numSamples
+
+                                # (240, 10) (40, 10) (64, 40, 64, 240)
+                        allTogether = np.matmul(np.transpose(weightLayer), deltaLayer[a, b, :weightLayer.shape[0]])
+                        allTogether = np.append(allTogether, np.zeros(shape=(deltaLayer[a][b].shape[0] - allTogether.shape[0], allTogether.shape[1])),axis=0)
+                        deltaLayer[a][b] = allTogether
             # calculate deltas for latest weights
             #           i/x               a   b           k (only going to use part)     num samples
             deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),x.shape[0]))) ## init deltas with respect to first layer weights
 
             # has shape of weightLayer
-            deltasOfSameLayer = np.matmul(self.derivativeOfActivation(outputBeforeActivation), np.transpose(output))
-            print("doudwx shape", deltasOfSameLayer.shape)
-            print("delts", deltas[-1].shape)
-            # deltas = np.transpose(deltas,axes=(3,2,0,1))
-            print("delts", deltas[-1].shape)
+            deltasOfSameLayer = np.matmul(np.transpose(output), self.derivativeOfActivation(outputBeforeActivation))
+            # if self.debugMode:
+                #print("doudwx shape", deltasOfSameLayer.shape)
+                #print("delts", deltas[-1].shape)
+                # deltas = np.transpose(deltas,axes=(3,2,0,1))
+                #print("delts", deltas[-1].shape)
             # for sampleNum in deltas[-1].shape[0]:
 
 
@@ -88,15 +94,18 @@ class NeuralNetwork():
             #         deltasOfSameLayer[a,b]
             for a in range(deltas[-1].shape[0]):
                 for b in range(deltas[-1].shape[1]):
-                    assert np.dot(self.derivativeOfActivation(outputBeforeActivation)[:, b],output[:, a]) == deltasOfSameLayer[a,b]
 
-                    # deltas[-1][a][b][b] = np.dot(self.derivativeOfActivation(outputBeforeActivation)[:, b],
-                    #                              output[:, a])
+                    # assert np.dot(self.derivativeOfActivation(outputBeforeActivation)[:, b],output[:, a]) == deltasOfSameLayer[a,b]
+
+                    #                                                                                 out of last layer
+                    deltas[-1][a][b][b] = self.derivativeOfActivation(outputBeforeActivation)[:, b] * output[:,a]
 
 
             output = self.activaction(outputBeforeActivation)  # pass through the layer
-        # print(output)
-        # print(deltas)
+            # break
+        # for deltaLayer in deltas:
+        #     #print(deltaLayer)
+        #     #print("________________")
         return output, deltas
     def train(self, x, y, numIter=2):
 
@@ -118,17 +127,24 @@ class NeuralNetwork():
                 for a in range(weightLayer.shape[0]):
                     for b in range(weightLayer.shape[1]):
                         for k in range(weightLayer.shape[-1]):
-                            # print(deltas[weightLayerIndex][a][b,:yhat.shape[1]].shape)
+                            # #print(deltas[weightLayerIndex][a][b,:yhat.shape[1]].shape)
 
                             weightChangesWanted[a,b] = np.mean(np.dot(yhat - y, deltas[weightLayerIndex][a][b][:yhat.shape[1]]))
+                # if self.debugMode:
+                #     #print(weightChangesWanted)
                 weightLayer -=  weightChangesWanted * self.learningRate
                 # need to condense deltas into self.weights-like array buy dot product with yhat - y
 
 
             ranNum = random.randint(0,yhat.shape[1]-1)
 
-            print(tensorflow.nn.softmax(yhat[ranNum]))
-            print("vs")
+            # #print(tensorflow.nn.softmax(yhat[ranNum]))
+            #print("vs")
+            #print(y[ranNum])
+            print(np.argmax(yhat,axis=1))
+            print(np.argmax(y,axis=1))
+            print(np.sum(np.argmax(yhat,axis=1) == np.argmax(y,axis=1))/y.shape[0])
+            print(yhat[ranNum])
             print(y[ranNum])
-            print(np.argmax(yhat[ranNum]), np.argmax(y[ranNum]))
             print("__________")
+

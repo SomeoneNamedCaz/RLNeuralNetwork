@@ -7,12 +7,12 @@ import re
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 
-# prof = cProfile.Profile()
-# prof.enable()
+prof = cProfile.Profile()
+prof.enable()
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     ## test neural network
-    layerSizes = [64,64,40,10]
+    layerSizes = [64,40,10]
     nn = NeuralNetwork(layerSizes)
     ## test weight sizes
     # print("size", len(nn.weights))
@@ -31,8 +31,12 @@ if __name__ == '__main__':
     for answer in digits["target"]:
         i += 1
         oneHotTarget[i, answer] = 1
-    numDigitsToRead = 12
-    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=100)
+    numDigitsToRead = 240
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=10)
+    nn.learningRate = 0.2
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=10)
+    nn.learningRate = 0.01
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=20)
 
     # x = np.zeros(shape=(2,4,5,6,7,))
     # # print(np.matmul(x, x.transpose()).shape)
@@ -42,9 +46,9 @@ if __name__ == '__main__':
     # x = np.transpose(x,axes=(4,3,2,1,0))
     # print(x.shape)
 
-# prof.disable()
-# prof.create_stats()
-# prof.print_stats()
+prof.disable()
+prof.create_stats()
+prof.print_stats()
 
 # import pstats, io
 # # from pstats import SortKey
