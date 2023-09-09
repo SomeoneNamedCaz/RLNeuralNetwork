@@ -32,11 +32,7 @@ if __name__ == '__main__':
         i += 1
         oneHotTarget[i, answer] = 1
     numDigitsToRead = 240
-    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=10)
-    nn.learningRate = 0.2
-    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=10)
-    nn.learningRate = 0.01
-    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=20)
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=2)
 
     # x = np.zeros(shape=(2,4,5,6,7,))
     # # print(np.matmul(x, x.transpose()).shape)
