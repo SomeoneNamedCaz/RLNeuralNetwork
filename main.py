@@ -12,7 +12,7 @@ prof.enable()
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     ## test neural network
-    layerSizes = [64,40,10]
+    layerSizes = [64,40,20,10]
     nn = NeuralNetwork(layerSizes)
     ## test weight sizes
     # print("size", len(nn.weights))
@@ -31,9 +31,17 @@ if __name__ == '__main__':
     for answer in digits["target"]:
         i += 1
         oneHotTarget[i, answer] = 1
-    numDigitsToRead = 240
-    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=2)
+    numDigitsToRead = 2400 # everything
+    SLEEP_TIME = 0.1
 
+    nn.learningRate = 1
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=5,lazyness=SLEEP_TIME)
+    nn.learningRate = 0.5
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=5,lazyness=SLEEP_TIME)
+    nn.learningRate = 0.2
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=10,lazyness=SLEEP_TIME)
+    nn.learningRate = 0.1
+    nn.train(digits["data"][:numDigitsToRead], oneHotTarget[:numDigitsToRead], numIter=20,lazyness=SLEEP_TIME)
     # x = np.zeros(shape=(2,4,5,6,7,))
     # # print(np.matmul(x, x.transpose()).shape)
     # # for i in range(5):
