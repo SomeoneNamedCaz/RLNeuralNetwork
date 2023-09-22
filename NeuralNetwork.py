@@ -1,51 +1,67 @@
-import numpy as np
-import sys
 import random
-import tensorflow
-import math
+# import random.randint
 from time import sleep
 
-def fixNans(x): # only for use in sigmoid
-    for i in range(len(x)):
-        if isinstance(x[i], np.ndarray):
-            x[i] = fixNans(x[i])
-        elif math.isnan(x[i]):
-            x[i] = 0 # so it modifies original matrix
-    return x
+import jax
+# JAX's syntax is (for the most part) same as NumPy's!
+# There is also a SciPy API support (jax.scipy)
+import jax.numpy as jnp
+# Special transform functions (we'll understand what these are very soon!)
+from jax import grad
+from jax import random
+
+
+# JAX's low level API
+# (lax is just an anagram for XLA, not completely sure how they came up with name JAX)
+
+
 def sigmoid(x):
-    # checkNans(1 / (1 + np.exp(-x)))
-    sigmoided = fixNans(1 / (1 + np.exp(-x)))
-    return sigmoided
+    return 2 * (1 / (1 + jnp.exp(-x))) - 1
 
 
 def sigmoidPrime(x):
-    exped = np.exp(-x)
-    # if exped
-    # exped = fixNans(exped)
-    result = ((1+exped)**(-2))*exped
-    # result = fixNans(result)
-    return ((1+exped)**(-2))*exped
+    try:
+        exped = jnp.exp(-x)
+    except OverflowError:
+        return 0.0
+    return 2 * ((1 + exped) ** (-2)) * exped
+
+
+# def softmax(inputs, axis=0):
+#     expedInputs = np.exp(inputs)
+#     denominator = np.sum(expedInputs, axis=axis)
+#     for _ in range(expedInputs.shape[axis]):
+#         denominator = np.concatenate((denominator, denominator), axis) # prob need backwards axis
+#     expedInputs /= denominator
+#     return expedInputs
+def derivativeOfSoftmax(inputs, indexOfNumerator, indexOfDerivingVar):
+    result = inputs[:, indexOfNumerator]
+    if indexOfNumerator == indexOfDerivingVar:
+        result *= (1 - inputs[:, indexOfDerivingVar])
+    else:
+        result *= -inputs[:, indexOfDerivingVar]
+    return result
+
 
 def relu(x):
-    return np.max(0, x)
+    return jnp.max(0, x)
 
 
 # def leakyRelu(x):
 
 
 class NeuralNetwork():
-    def __init__(self, layerSizes, learningRate=0.1, penaltyForNotLearning=1, activaction=sigmoid, derivativeOfActivation=sigmoidPrime):
+    def __init__(self, layerSizes, learningRate=0.1, penaltyForNotLearning=1, activaction=sigmoid,
+                 derivativeOfActivation=sigmoidPrime):
         """ layerSizes :list of ints, the values are the number of nodes
                         in the layer. Includes the input and output layer
         """
-        self.weights = [] ## list of matrices that is the connections between the nodes
+        self.weights = []  ## list of matrices that is the connections between the nodes
         for i in range(len(layerSizes)):
             try:
-                self.weights.append(np.random.normal(size=(layerSizes[i], layerSizes[i+1])))
+                self.weights.append(random.normal(jax.random.PRNGKey(100), shape=(layerSizes[i], layerSizes[i + 1])))
             except IndexError:
                 pass
-
-
 
         ## init class vars
         self.learningRate = learningRate
@@ -53,109 +69,57 @@ class NeuralNetwork():
         self.activaction = activaction
         self.derivativeOfActivation = derivativeOfActivation
         self.layerSizes = layerSizes
-        self.avgPastWeights = [] # rolling avg of past weights (give slight gradient away from their)
-    def forwardPass(self, x, lazyness=0):
+        self.avgPastWeights = []  # rolling avg of past weights (give slight gradient away from their)
+        self.ouputFunction = activaction
+        self.x = []
+        self.y = []
+
+    def forwardPass(self, x, weights=[], lazyness=0):
         """ x : is input, has shape of
             :returns: output of NeuralNetwork and deltas ="""
+        if weights == []:
+            weights = self.weights
         deltas = []
-        if x.shape[1] != self.weights[0].shape[0]:
+        if x.shape[1] != weights[0].shape[0]:
             print("ERROR: input is wrong size")
-            sys.exit(1)
+            raise Exception("ERROR: input is wrong size\ninput size: " + str(x.shape[1]) + "\nweight size: " +
+                            str(weights[0].shape[0]))
         output = x
-        for i in range(len(self.weights)): ## for each layer of neural network
+        for i in range(len(weights)):  ## for each layer of neural network
             if lazyness > 0:
                 sleep(lazyness)
-            weightLayer = self.weights[i]
-            outputBeforeActivation = np.dot(output,weightLayer)
-
-            # calculate deltas (so we can train)
-            # calculate deltas for weights more than 1 layer back
-
-            for deltaLayer in deltas: ## for delta corresponding to first layer
-                for a in range(deltaLayer.shape[0]):
-                    for b in range(deltaLayer.shape[1]): # 103 seconds vs 285
-                                # #print("start")
-                                # derivative = self.derivativeOfActivation(outputBeforeActivation[:,k])
-                                # Wcol = weightLayer[:, k]
-                                # deltCol = deltaLayer[a,b, :Wcol.shape[0]]
-                                # print(self.derivativeOfActivation(outputBeforeActivation).shape) # (numSamples, next layer size)
-                                # print(weightLayer.shape) # (previous layer size, next layer size
-                                # print(deltaLayer.shape) # (size of inputs of weights, size of outputs of weights
-                                    # (self.weights[delts.indexof[deltlayer], layer after that size, numSamples
-
-                                # (240, 10) (40, 10) (64, 40, 64, 240)
-                        allTogether = np.matmul(np.transpose(weightLayer), deltaLayer[a, b, :weightLayer.shape[0]])
-                        allTogether = np.append(allTogether, np.zeros(shape=(deltaLayer[a][b].shape[0] - allTogether.shape[0], allTogether.shape[1])),axis=0)
-                        deltaLayer[a][b] = allTogether
-            # calculate deltas for latest weights
-            #           i/x               a   b           k (only going to use part)     num samples
-            deltas.append(np.zeros(shape=weightLayer.shape + (max(self.layerSizes),x.shape[0]))) ## init deltas with respect to first layer weights
-
-            # has shape of weightLayer
-            # deltasOfSameLayer = np.matmul(np.transpose(output), self.derivativeOfActivation(outputBeforeActivation))
-            # if self.debugMode:
-                #print("doudwx shape", deltasOfSameLayer.shape)
-                #print("delts", deltas[-1].shape)
-                # deltas = np.transpose(deltas,axes=(3,2,0,1))
-                #print("delts", deltas[-1].shape)
-            # for sampleNum in deltas[-1].shape[0]:
-
-
-            # for _ in range(deltas[-1].shape[0]):
-
-            # for a in range(deltas[-1].shape[0]):
-            #     for b in range(deltas[-1].shape[1]):
-            #         deltasOfSameLayer[a,b]
-            for a in range(deltas[-1].shape[0]):
-                for b in range(deltas[-1].shape[1]):
-                    # for s in range(deltas[-1].shape[-1]): # num samples
-                        # if not (np.dot(self.derivativeOfActivation(outputBeforeActivation)[:, b],output[:, a]) == deltasOfSameLayer[a,b]).all():
-                        #     print("uh oh")
-                        #                                                                                 out of last layer
-                    deltas[-1][a,b,b] = self.derivativeOfActivation(outputBeforeActivation[:,b])*output[:, a]
-
-            # fixNans(deltas)
-            # deltas[-1] = np.transpose(deltas[-1],axes=(2,1,0,3))
-            # for b in range(deltas[-1].shape[0]): # now axis 0
-            #     deltas[-1][b] = deltasOfSameLayer
-            # deltas[-1] = np.transpose(deltas[-1], axes=(2, 1, 0, 3))
+            weightLayer = weights[i]
+            outputBeforeActivation = jnp.matmul(output, weightLayer)
             output = self.activaction(outputBeforeActivation)  # pass through the layer
         # print(output)
         # print(deltas)
-        return output, deltas
-    def train(self, x, y, numIter=2, lazyness=0):
+        return output
 
+    def getError(self, weights, lazyness=0):
+        yhat = self.forwardPass(self.x, weights)
+        error = jnp.sum((self.ouputFunction(yhat) - self.y) ** 2)
+        return error
+
+    def train(self, x, y, numIter=2, lazyness=0):
+        self.x = x  # probably not the best strat
+        self.y = y
         for i in range(numIter):
-            yhat, deltas = self.forwardPass(x)
-            error = np.sum((yhat - y) ** 2)
-            print("iteration:",i,"error", error)
-            if np.isnan(error):
+            yhat = self.forwardPass(x, lazyness=lazyness)
+            error = jnp.sum((self.ouputFunction(yhat) - y) ** 2)
+            print("iteration:", i, "error", error)
+            if jnp.isnan(error):
                 print("error is nan, stopping")
                 break
             ## update
+            weightGrads = grad(self.getError)(self.weights)
+            for index in range(len(self.weights)):
+                self.weights[index] -= weightGrads[index] * self.learningRate
 
+            # ranNum = random.randint(0,yhat.shape[1]-1)
 
-            weightLayerIndex = -1
-            for weightLayer in self.weights:
-                weightLayerIndex += 1
-                # for deltaLayer in deltas:  ## update earlier layers
-                weightChangesWanted = np.zeros_like(weightLayer)
-                for a in range(weightLayer.shape[0]):
-                    for b in range(weightLayer.shape[1]):
-                        for k in range(weightLayer.shape[-1]):
-                            # print(deltas[weightLayerIndex][a][b,:yhat.shape[1]].shape)
-
-                            weightChangesWanted[a,b] = np.mean(np.dot(yhat - y, deltas[weightLayerIndex][a][b][:yhat.shape[1]])) ## mse
-
-                weightLayer -=  weightChangesWanted * self.learningRate
-                # need to condense deltas into self.weights-like array buy dot product with yhat - y
-
-
-            ranNum = random.randint(0,yhat.shape[1]-1)
-
-            print(np.argmax(yhat,axis=1))
-            print(np.argmax(y,axis=1))
-            print(np.sum(np.argmax(yhat,axis=1) == np.argmax(y,axis=1))/y.shape[0])
-            print(yhat[ranNum],np.argmax(yhat[ranNum]))
-            print(y[ranNum], np.argmax(y[ranNum]))
+            print(jnp.argmax(self.ouputFunction(yhat), axis=1))
+            print(jnp.argmax(y, axis=1))
+            print(jnp.sum(jnp.argmax(self.ouputFunction(yhat), axis=1) == jnp.argmax(y, axis=1)) / y.shape[0])
+            # print(self.ouputFunction(yhat)[ranNum],jnp.argmax(yhat[ranNum]))
+            # print(y[ranNum], jnp.argmax(y[ranNum]))
             print("__________")
