@@ -11,6 +11,10 @@ import re
 # from NeuralNetwork import NeuralNetwork
 import numpy as np
 import sklearn.datasets as datasets
+from time import time
+# JAX_DEBUG_NANS=True
+# from jax import config
+# config.update("jax_debug_nans", True)
 import cProfile
 import re
 # import matplotlib.pyplot as plt
@@ -21,14 +25,15 @@ import re
 # prof.enable()
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    t1 = time()
     ## test neural network
-    hiddenLayerSizes = [40,10]
+    hiddenLayerSizes = [30,20,10]
 
     ## test weight sizes
     # print("size", len(nn.weights))
 
-    dataset = datasets.load_iris()
-    # dataset = datasets.load_digits()
+    # dataset = datasets.load_iris()
+    dataset = datasets.load_digits()
     dataset.keys()
     # data = np.random.uniform(size=[1,10])
     # nn.forwardPass(digits[0])
@@ -54,10 +59,10 @@ if __name__ == '__main__':
 
     # nn.learningRate = 0.5
     # nn.train(dataset["data"][:NUM_SAMPLES_TO_READ], oneHotTarget[:NUM_SAMPLES_TO_READ], numIter=5, lazyness=SLEEP_TIME)
+    nn.learningRate = 0.1
+    nn.train(dataset["data"][:NUM_SAMPLES_TO_READ], oneHotTarget[:NUM_SAMPLES_TO_READ], numIter=1000, lazyness=SLEEP_TIME)
     nn.learningRate = 0.01
-    nn.train(dataset["data"][:NUM_SAMPLES_TO_READ], oneHotTarget[:NUM_SAMPLES_TO_READ], numIter=5000, lazyness=SLEEP_TIME)
-    # nn.learningRate = 0.01
-    # nn.train(dataset["data"][:NUM_SAMPLES_TO_READ], oneHotTarget[:NUM_SAMPLES_TO_READ], numIter=10, lazyness=SLEEP_TIME)
+    nn.train(dataset["data"][:NUM_SAMPLES_TO_READ], oneHotTarget[:NUM_SAMPLES_TO_READ], numIter=1000, lazyness=SLEEP_TIME)
     # nn.learningRate = 0.001
     # nn.train(dataset["data"][:NUM_SAMPLES_TO_READ], oneHotTarget[:NUM_SAMPLES_TO_READ], numIter=20, lazyness=SLEEP_TIME)
     # x = np.zeros(shape=(2,4,5,6,7,))
@@ -67,8 +72,9 @@ if __name__ == '__main__':
     # print(x.shape)
     # x = np.transpose(x,axes=(4,3,2,1,0))
     # print(x.shape)
-
+    print(time()-t1)
 # prof.disable()
 # prof.create_stats()
 # prof.print_stats()
+
 

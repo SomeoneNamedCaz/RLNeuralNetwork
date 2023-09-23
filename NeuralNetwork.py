@@ -9,6 +9,7 @@ import jax.numpy as jnp
 # Special transform functions (we'll understand what these are very soon!)
 from jax import grad
 from jax import random
+import numpy as np
 
 
 # JAX's low level API
@@ -16,14 +17,14 @@ from jax import random
 
 
 def sigmoid(x):
-    return 2 * (1 / (1 + jnp.exp(-x))) - 1
+    exped = jnp.exp(-x)
+    exped = exped.at[exped > 100000000].set(100000000)
+    return 2 * (1 / (1 +exped)) - 1
 
 
 def sigmoidPrime(x):
-    try:
-        exped = jnp.exp(-x)
-    except OverflowError:
-        return 0.0
+    exped = jnp.exp(-x)
+    # exped = exped.at[exped > 100000000].set(1000)
     return 2 * ((1 + exped) ** (-2)) * exped
 
 
@@ -51,7 +52,7 @@ def relu(x):
 
 
 class NeuralNetwork():
-    def __init__(self, layerSizes, learningRate=0.1, penaltyForNotLearning=1, activaction=sigmoid,
+    def __init__(self, layerSizes, learningRate=0.1, penaltyForNotLearning=1, activaction=jnp.tanh,
                  derivativeOfActivation=sigmoidPrime):
         """ layerSizes :list of ints, the values are the number of nodes
                         in the layer. Includes the input and output layer
@@ -97,7 +98,7 @@ class NeuralNetwork():
 
     def getError(self, weights, lazyness=0):
         yhat = self.forwardPass(self.x, weights)
-        error = jnp.sum((self.ouputFunction(yhat) - self.y) ** 2)
+        error = jnp.mean((self.ouputFunction(yhat) - self.y) ** 2)
         return error
 
     def train(self, x, y, numIter=2, lazyness=0):
@@ -105,21 +106,25 @@ class NeuralNetwork():
         self.y = y
         for i in range(numIter):
             yhat = self.forwardPass(x, lazyness=lazyness)
-            error = jnp.sum((self.ouputFunction(yhat) - y) ** 2)
-            print("iteration:", i, "error", error)
-            if jnp.isnan(error):
-                print("error is nan, stopping")
-                break
+
             ## update
             weightGrads = grad(self.getError)(self.weights)
+            # print(jax.make_jaxpr(grad(self.getError)))
             for index in range(len(self.weights)):
+                # weightGrads[index] = weightGrads[index].at[weightGrads[index] > 100000000].set(0)
+                weightGrads[index] = weightGrads[index].at[jnp.isnan(weightGrads[index])].set(0)
                 self.weights[index] -= weightGrads[index] * self.learningRate
 
             # ranNum = random.randint(0,yhat.shape[1]-1)
-
-            print(jnp.argmax(self.ouputFunction(yhat), axis=1))
-            print(jnp.argmax(y, axis=1))
-            print(jnp.sum(jnp.argmax(self.ouputFunction(yhat), axis=1) == jnp.argmax(y, axis=1)) / y.shape[0])
-            # print(self.ouputFunction(yhat)[ranNum],jnp.argmax(yhat[ranNum]))
-            # print(y[ranNum], jnp.argmax(y[ranNum]))
-            print("__________")
+            if i % 10 == 0:
+                error = jnp.sum((self.ouputFunction(yhat) - y) ** 2)
+                print("iteration:", i, "error", error)
+                if jnp.isnan(error):
+                    print("error is nan, stopping")
+                    break
+                print(jnp.argmax(self.ouputFunction(yhat), axis=1))
+                print(jnp.argmax(y, axis=1))
+                print(jnp.sum(jnp.argmax(self.ouputFunction(yhat), axis=1) == jnp.argmax(y, axis=1)) / y.shape[0])
+                # print(self.ouputFunction(yhat)[ranNum],jnp.argmax(yhat[ranNum]))
+                # print(y[ranNum], jnp.argmax(y[ranNum]))
+                print("__________")
