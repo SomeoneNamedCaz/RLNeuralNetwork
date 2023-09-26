@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 # Special transform functions (we'll understand what these are very soon!)
 from jax import grad
-from jax import random
+import random
 import numpy as np
 
 
@@ -18,7 +18,7 @@ import numpy as np
 
 def sigmoid(x):
     exped = jnp.exp(-x)
-    exped = exped.at[exped > 100000000].set(100000000)
+    # exped = exped.at[exped > 100000000].set(100000000)
     return 2 * (1 / (1 +exped)) - 1
 
 
@@ -60,7 +60,7 @@ class NeuralNetwork():
         self.weights = []  ## list of matrices that is the connections between the nodes
         for i in range(len(layerSizes)):
             try:
-                self.weights.append(random.normal(jax.random.PRNGKey(100), shape=(layerSizes[i], layerSizes[i + 1])))
+                self.weights.append(jax.random.normal(jax.random.PRNGKey(100), shape=(layerSizes[i], layerSizes[i + 1])))
             except IndexError:
                 pass
 
@@ -70,10 +70,8 @@ class NeuralNetwork():
         self.activaction = activaction
         self.derivativeOfActivation = derivativeOfActivation
         self.layerSizes = layerSizes
-        self.avgPastWeights = []  # rolling avg of past weights (give slight gradient away from their)
+        self.latestGradSteps = [self.weights, ] * 10  # last 10 weight grads (just init so don't get shape error)
         self.ouputFunction = activaction
-        self.x = []
-        self.y = []
 
     def forwardPass(self, x, weights=[], lazyness=0):
         """ x : is input, has shape of
@@ -96,27 +94,65 @@ class NeuralNetwork():
         # print(deltas)
         return output
 
-    def getError(self, weights, lazyness=0):
-        yhat = self.forwardPass(self.x, weights)
-        error = jnp.mean((self.ouputFunction(yhat) - self.y) ** 2)
+    def getError(self,x,y, weights, lazyness=0):
+        yhat = self.forwardPass(x, weights)
+        pastWeightGrads1 = self.latestGradSteps[-2]
+        pastWeightGrads2 = self.latestGradSteps[-1]
+        diffSum = 0
+        for layerIndex in range(len(pastWeightGrads1)):
+            diffSum += jnp.linalg.norm(
+                pastWeightGrads1[layerIndex] / jnp.linalg.norm(pastWeightGrads1[layerIndex]) - pastWeightGrads2[
+                    layerIndex] / jnp.linalg.norm(pastWeightGrads2[layerIndex]))
+        diffSum /= layerIndex + 1
+
+        error = jnp.mean((self.ouputFunction(yhat) - y) ** 2)
+        if not jnp.isnan(diffSum) and diffSum != 0:
+            error /= diffSum
         return error
 
-    def train(self, x, y, numIter=2, lazyness=0):
-        self.x = x  # probably not the best strat
-        self.y = y
+    def train(self, x, y, batchSize = 50000000, numIter=2, lazyness=0):
+        gradFunc = grad(self.getError, argnums=2)
         for i in range(numIter):
-            yhat = self.forwardPass(x, lazyness=lazyness)
+            printIter = i % 100 == 0
+            # if batchSize != -1
+            numBatches = (x.shape[0]/batchSize)
+            randBatchNumber = random.randint(0,round(numBatches))
+            batchX = x[randBatchNumber*batchSize:(randBatchNumber + 1)*batchSize]  # probably not the best strat
+            batchY = y[randBatchNumber*batchSize:(randBatchNumber + 1)*batchSize]
 
             ## update
-            weightGrads = grad(self.getError)(self.weights)
+            weightGrads = gradFunc(batchX,batchY,self.weights)
             # print(jax.make_jaxpr(grad(self.getError)))
+
+            weightGradsTimesLearningRate = []
+
+
             for index in range(len(self.weights)):
+                # momentumGrad = jnp.zeros_like(self.weights[index])
+                # for pastWeightGrad in self.avgPastWeights:
+                #     momentumGrad += pastWeightGrad[index]
+                # momentumGrad /= len(self.avgPastWeights)
                 # weightGrads[index] = weightGrads[index].at[weightGrads[index] > 100000000].set(0)
-                weightGrads[index] = weightGrads[index].at[jnp.isnan(weightGrads[index])].set(0)
-                self.weights[index] -= weightGrads[index] * self.learningRate
+                # weightGrads[index] = weightGrads[index].at[jnp.isnan(weightGrads[index])].set(0)
+                self.weights[index] -= (weightGrads[index] * self.learningRate) #+ momentumGrad
+                if printIter:
+                    weightGradsTimesLearningRate.append(weightGrads[index] * self.learningRate)
+
 
             # ranNum = random.randint(0,yhat.shape[1]-1)
-            if i % 10 == 0:
+            if printIter:
+                self.latestGradSteps.pop(0)
+                self.latestGradSteps.append(weightGradsTimesLearningRate)
+                for pastWeightGradIndex in range(len(self.latestGradSteps) - 1):
+                    pastWeightGrads1 = self.latestGradSteps[pastWeightGradIndex]
+                    pastWeightGrads2 = weightGradsTimesLearningRate
+                    diffSum = 0
+                    for layerIndex in range(len(pastWeightGrads1)):
+                        diffSum += jnp.linalg.norm(pastWeightGrads1[layerIndex]/jnp.linalg.norm(pastWeightGrads1[layerIndex]) - pastWeightGrads2[layerIndex]/jnp.linalg.norm(pastWeightGrads2[layerIndex]))
+                    diffSum /= layerIndex + 1
+                    print("gradient distances", len(self.latestGradSteps) - pastWeightGradIndex - 1, "iterations away:", diffSum)
+                print("----------")
+                yhat = self.forwardPass(x, lazyness=lazyness)
                 error = jnp.sum((self.ouputFunction(yhat) - y) ** 2)
                 print("iteration:", i, "error", error)
                 if jnp.isnan(error):
